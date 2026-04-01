@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 
 const navItems = [
   { href: "/", label: "ダッシュボード" },
+  { href: "/affiliate", label: "Amazonアフィ" },
   { href: "/scheduler", label: "投稿スケジュール" },
   { href: "/inbox", label: "リプ / メンション" },
   { href: "/analytics", label: "分析" },
