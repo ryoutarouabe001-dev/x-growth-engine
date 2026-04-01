@@ -1,7 +1,18 @@
 "use client";
 
+import {
+  Check,
+  Copy,
+  HelpCircle,
+  PackagePlus,
+  Settings2,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AffiliateSettings, AmazonProduct } from "@/types/affiliate";
+import { cn } from "@/lib/utils";
 
 const LS_PRODUCTS = "xge-v1-amazon-products";
 const LS_SETTINGS = "xge-v1-affiliate-settings";
@@ -11,6 +22,8 @@ const defaultSettings: AffiliateSettings = {
   disclosure:
     "※当ポストはアフィリエイト広告を含みます（Amazonアソシエイト）。",
 };
+
+type TabKey = "compose" | "add" | "settings";
 
 function newId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -54,8 +67,43 @@ function saveSettings(s: AffiliateSettings) {
   window.localStorage.setItem(LS_SETTINGS, JSON.stringify(s));
 }
 
+function TabButton(props: {
+  active: boolean;
+  onClick: () => void;
+  icon: ReactNode;
+  label: string;
+  sub: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      className={cn(
+        "flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-2 text-center transition-colors",
+        props.active
+          ? "bg-emerald-500/15 ring-2 ring-emerald-500/50"
+          : "bg-slate-900/80 ring-1 ring-slate-800 hover:bg-slate-800",
+      )}
+    >
+      <span className={cn(props.active ? "text-emerald-300" : "text-slate-500")}>
+        {props.icon}
+      </span>
+      <span
+        className={cn(
+          "text-xs font-semibold",
+          props.active ? "text-emerald-100" : "text-slate-200",
+        )}
+      >
+        {props.label}
+      </span>
+      <span className="hidden text-[10px] text-slate-500 sm:block">{props.sub}</span>
+    </button>
+  );
+}
+
 export default function AmazonAffiliatePage() {
   const [mounted, setMounted] = useState(false);
+  const [tab, setTab] = useState<TabKey>("compose");
   const [products, setProducts] = useState<AmazonProduct[]>([]);
   const [settings, setSettings] = useState<AffiliateSettings>(defaultSettings);
 
@@ -108,6 +156,7 @@ export default function AmazonAffiliatePage() {
     setAffiliateUrl("");
     setMemo("");
     setTags("");
+    setTab("compose");
   }, [title, affiliateUrl, memo, tags]);
 
   const removeProduct = useCallback((id: string) => {
@@ -134,7 +183,7 @@ export default function AmazonAffiliatePage() {
       setDraft(data.text || "");
       setSource(data.source === "openai" ? "openai" : "template");
     } catch {
-      setDraft("通信エラー。接続を確認してください。");
+      setDraft("通信エラー。通信環境を確認してください。");
       setSource("idle");
     } finally {
       setLoading(false);
@@ -146,7 +195,7 @@ export default function AmazonAffiliatePage() {
     try {
       await navigator.clipboard.writeText(draft);
       setCopyState("ok");
-      setTimeout(() => setCopyState("idle"), 1500);
+      setTimeout(() => setCopyState("idle"), 2000);
     } catch {
       setCopyState("err");
     }
@@ -154,210 +203,371 @@ export default function AmazonAffiliatePage() {
 
   if (!mounted) {
     return (
-      <div className="text-sm text-slate-400">読み込み中…</div>
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-400">
+        読み込み中…
+      </div>
     );
   }
 
+  const canAdd = title.trim().length > 0 && affiliateUrl.trim().length > 0;
+  const step1Done = !!selected;
+  const step2Done = draft.trim().length > 0;
+
   return (
-    <div className="mx-auto max-w-3xl space-y-8 pb-24">
-      <header className="space-y-2">
-        <h1 className="text-lg font-semibold text-slate-100">Amazonアソシエイト</h1>
-        <p className="text-sm leading-relaxed text-slate-400">
-          商品はスマホでも登録できます（この端末のブラウザに保存）。リンクはAmazonの正規ツールで作ったものを貼ってください。
-          文案は<strong className="font-medium text-slate-300">APIキーなしでもテンプレ生成</strong>、
-          Vercelに<code className="mx-1 rounded bg-slate-900 px-1.5 py-0.5 text-xs">OPENAI_API_KEY</code>
-          を入れるとAI生成に切り替わります。
+    <div className="mx-auto max-w-lg lg:max-w-3xl">
+      <header className="mb-5 space-y-2">
+        <p className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-500/90">
+          Amazonアソシエイト
         </p>
-        <p className="text-xs text-slate-500">
-          運用イメージ：週末夜に3件登録 → 文案生成 → X公式アプリに貼って予約投稿（X APIは後で接続）。
+        <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+          3タップの流れで投稿文案まで
+        </h1>
+        <p className="text-sm leading-relaxed text-slate-400">
+          <span className="text-slate-300">① 商品を選ぶ</span>
+          <span className="mx-1 text-slate-600">→</span>
+          <span className="text-slate-300">② 文案を作る</span>
+          <span className="mx-1 text-slate-600">→</span>
+          <span className="text-slate-300">③ Xに貼る</span>
+          。データはこの端末にだけ保存されます。
         </p>
       </header>
 
-      <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-        <h2 className="text-sm font-semibold text-slate-200">アカウント設定</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="block text-xs text-slate-400">
-            テーマ（例：朝ガジェ）
-            <input
-              value={settings.accountTheme}
-              onChange={(e) =>
-                setSettings((s) => ({ ...s, accountTheme: e.target.value }))
-              }
-              className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500/40"
-            />
-          </label>
-          <label className="block text-xs text-slate-400 sm:col-span-2">
-            開示（固定で文末に付きます・表現はご自身で調整）
-            <textarea
-              value={settings.disclosure}
-              onChange={(e) =>
-                setSettings((s) => ({ ...s, disclosure: e.target.value }))
-              }
-              rows={2}
-              className="mt-1 w-full resize-y rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500/40"
-            />
-          </label>
-        </div>
-      </section>
+      {/* メインタブ */}
+      <div className="mb-5 flex gap-2">
+        <TabButton
+          active={tab === "compose"}
+          onClick={() => setTab("compose")}
+          icon={<Sparkles className="h-5 w-5" aria-hidden />}
+          label="作る"
+          sub="投稿文案"
+        />
+        <TabButton
+          active={tab === "add"}
+          onClick={() => setTab("add")}
+          icon={<PackagePlus className="h-5 w-5" aria-hidden />}
+          label="登録"
+          sub="商品追加"
+        />
+        <TabButton
+          active={tab === "settings"}
+          onClick={() => setTab("settings")}
+          icon={<Settings2 className="h-5 w-5" aria-hidden />}
+          label="設定"
+          sub="テーマ・開示"
+        />
+      </div>
 
-      <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-        <h2 className="text-sm font-semibold text-slate-200">商品を追加</h2>
-        <div className="mt-3 grid gap-3">
-          <label className="block text-xs text-slate-400">
-            商品名
+      {/* 進捗（作るタブ時） */}
+      {tab === "compose" ? (
+        <div className="mb-4 flex items-center gap-1 rounded-xl bg-slate-900/50 p-3 text-xs text-slate-400 ring-1 ring-slate-800">
+          <span
+            className={cn(
+              "flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold",
+              step1Done
+                ? "bg-emerald-500/20 text-emerald-200"
+                : "bg-slate-800 text-slate-500",
+            )}
+          >
+            {step1Done ? <Check className="h-3.5 w-3.5" /> : "1"}
+          </span>
+          <span className={step1Done ? "text-slate-200" : ""}>商品を選ぶ</span>
+          <span className="mx-1 text-slate-600">—</span>
+          <span
+            className={cn(
+              "flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold",
+              step2Done
+                ? "bg-emerald-500/20 text-emerald-200"
+                : "bg-slate-800 text-slate-500",
+            )}
+          >
+            {step2Done ? <Check className="h-3.5 w-3.5" /> : "2"}
+          </span>
+          <span className={step2Done ? "text-slate-200" : ""}>文案作成</span>
+          <span className="mx-1 text-slate-600">—</span>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-[11px] font-bold text-slate-500">
+            3
+          </span>
+          <span>コピー</span>
+        </div>
+      ) : null}
+
+      {tab === "compose" ? (
+        <div className="space-y-4">
+          {products.length === 0 ? (
+            <div className="rounded-2xl bg-slate-900/40 p-6 text-center ring-1 ring-slate-800">
+              <p className="text-sm text-slate-300">まだ商品がありません。</p>
+              <p className="mt-2 text-xs text-slate-500">
+                下の「登録」から、名前とアフィURLだけ入れて保存してください。
+              </p>
+              <button
+                type="button"
+                onClick={() => setTab("add")}
+                className="mt-4 w-full min-h-[48px] rounded-xl bg-emerald-500/90 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
+              >
+                商品を登録する
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-slate-500">タップして選択</p>
+              <ul className="space-y-2">
+                {products.map((p) => {
+                  const active = p.id === selectedId;
+                  return (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(p.id)}
+                        className={cn(
+                          "flex w-full min-h-[56px] items-start gap-3 rounded-2xl p-4 text-left transition-colors ring-1",
+                          active
+                            ? "bg-emerald-500/10 ring-emerald-500/50"
+                            : "bg-slate-900/40 ring-slate-800 hover:bg-slate-900/70",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px]",
+                            active
+                              ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-200"
+                              : "border-slate-700 bg-slate-950 text-slate-600",
+                          )}
+                        >
+                          {active ? <Check className="h-3.5 w-3.5" /> : ""}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-slate-100">
+                            {p.title}
+                          </span>
+                          {p.tags ? (
+                            <span className="mt-1 block text-xs text-slate-500">{p.tags}</span>
+                          ) : null}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeProduct(p.id);
+                          }}
+                          className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-rose-500/10 hover:text-rose-300"
+                          aria-label="削除"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
+          <div className="rounded-2xl bg-slate-900/40 p-4 ring-1 ring-slate-800">
+            <p className="mb-3 text-xs font-medium text-slate-400">文案の長さ</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setStyle("short")}
+                className={cn(
+                  "min-h-[48px] rounded-xl px-3 py-3 text-sm font-semibold transition-colors ring-1",
+                  style === "short"
+                    ? "bg-emerald-500/20 text-emerald-100 ring-emerald-500/50"
+                    : "bg-slate-950 text-slate-400 ring-slate-800",
+                )}
+              >
+                短文
+                <span className="mt-0.5 block text-[10px] font-normal text-slate-500">
+                  朝1ポスト向け
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStyle("thread_hint")}
+                className={cn(
+                  "min-h-[48px] rounded-xl px-3 py-3 text-sm font-semibold transition-colors ring-1",
+                  style === "thread_hint"
+                    ? "bg-emerald-500/20 text-emerald-100 ring-emerald-500/50"
+                    : "bg-slate-950 text-slate-400 ring-slate-800",
+                )}
+              >
+                少し長め
+                <span className="mt-0.5 block text-[10px] font-normal text-slate-500">
+                  スレ用の素
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={generateDraft}
+            disabled={!selected || loading}
+            className="flex w-full min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-white text-sm font-bold text-slate-950 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Sparkles className="h-4 w-4" aria-hidden />
+            {loading ? "つくっている…" : "この内容で文案を作成"}
+          </button>
+
+          {source !== "idle" ? (
+            <p className="text-center text-[11px] text-slate-500">
+              {source === "openai" ? "AIモード（OpenAI）" : "テンプレモード（APIキー不要）"}
+            </p>
+          ) : null}
+
+          <label className="block">
+            <span className="mb-2 block text-xs font-medium text-slate-400">
+              文案（直語でもOK）
+            </span>
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={10}
+              placeholder={
+                selected
+                  ? "上のボタンで自動作成するか、ここに直接書いてもOKです"
+                  : "先に商品を選んでください"
+              }
+              className="min-h-[200px] w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-base leading-relaxed text-slate-100 outline-none ring-0 focus:border-emerald-500/50"
+            />
+          </label>
+
+          <details className="rounded-xl bg-slate-900/30 p-3 text-xs text-slate-500 ring-1 ring-slate-800">
+            <summary className="flex cursor-pointer items-center gap-2 font-medium text-slate-400">
+              <HelpCircle className="h-4 w-4" />
+              ヒント（長押しコピー・APIキー）
+            </summary>
+            <p className="mt-2 leading-relaxed">
+              Vercelに環境変数 <code className="text-slate-400">OPENAI_API_KEY</code>{" "}
+              を入れると、文案がAI版になります。Amazonのリンクは必ず正規のものを貼ってください。
+            </p>
+          </details>
+        </div>
+      ) : null}
+
+      {tab === "add" ? (
+        <div className="space-y-4 rounded-2xl bg-slate-900/40 p-4 ring-1 ring-slate-800">
+          <p className="text-sm font-semibold text-slate-200">必須は2つだけ</p>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-400">商品名</span>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="例：Anker モバイルバッテリー 10000mAh"
-              className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500/40"
+              placeholder="例：Anker モバイルバッテリー"
+              className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 text-base text-slate-100 outline-none focus:border-emerald-500/50"
             />
           </label>
-          <label className="block text-xs text-slate-400">
-            アフィリエイトURL（正規）
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-400">
+              アフィURL（amzn.to など）
+            </span>
             <input
               value={affiliateUrl}
               onChange={(e) => setAffiliateUrl(e.target.value)}
-              placeholder="https://amzn.to/xxxx など"
+              placeholder="https://amzn.to/xxxx"
               inputMode="url"
               autoComplete="off"
-              className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500/40"
+              className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 text-base text-slate-100 outline-none focus:border-emerald-500/50"
             />
           </label>
-          <label className="block text-xs text-slate-400">
-            メモ（用途・こんな人向け）
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-400">
+              メモ（任意・おすすめ）
+            </span>
             <textarea
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
-              rows={2}
-              className="mt-1 w-full resize-y rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500/40"
+              placeholder="どんな人が使う？ 失敗しない条件は？"
+              rows={3}
+              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-base text-slate-100 outline-none focus:border-emerald-500/50"
             />
           </label>
-          <label className="block text-xs text-slate-400">
-            タグ（任意・カンマ区切り）
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-400">
+              タグ（任意）
+            </span>
             <input
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              placeholder="通勤, 仕事, iPhone"
-              className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500/40"
+              placeholder="通勤, iPhone, 仕事"
+              className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 text-base text-slate-100 outline-none focus:border-emerald-500/50"
             />
           </label>
           <button
             type="button"
             onClick={addProduct}
-            disabled={!title.trim() || !affiliateUrl.trim()}
-            className="rounded-lg bg-emerald-500/90 py-2.5 text-sm font-medium text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!canAdd}
+            className="w-full min-h-[52px] rounded-2xl bg-emerald-500/90 text-sm font-bold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            ライブラリに保存
+            保存して「作る」へ
           </button>
         </div>
-      </section>
+      ) : null}
 
-      <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <h2 className="text-sm font-semibold text-slate-200">ライブラリ</h2>
-          <p className="text-xs text-slate-500">{products.length}件</p>
-        </div>
-        {products.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">まだありません。上から追加してください。</p>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {products.map((p) => {
-              const active = p.id === selectedId;
-              return (
-                <li
-                  key={p.id}
-                  className={`rounded-lg border px-3 py-2 ${
-                    active
-                      ? "border-emerald-500/40 bg-emerald-500/5"
-                      : "border-slate-800 bg-slate-950/60"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(p.id)}
-                      className="min-w-0 flex-1 text-left"
-                    >
-                      <div className="text-sm font-medium text-slate-100">{p.title}</div>
-                      {p.tags ? (
-                        <div className="mt-1 text-[11px] text-slate-500">{p.tags}</div>
-                      ) : null}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeProduct(p.id)}
-                      className="shrink-0 rounded-md border border-slate-800 px-2 py-1 text-[11px] text-slate-400 hover:border-rose-500/40 hover:text-rose-200"
-                    >
-                      削除
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
-      <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-        <h2 className="text-sm font-semibold text-slate-200">投稿文案</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          生成後はコピーしてXに貼り付け。内容は必ず目視で確認してください。
-        </p>
-
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <label className="flex items-center gap-2 text-xs text-slate-300">
-            <span className="text-slate-500">体裁</span>
-            <select
-              value={style}
+      {tab === "settings" ? (
+        <div className="space-y-4 rounded-2xl bg-slate-900/40 p-4 ring-1 ring-slate-800">
+          <p className="text-sm font-semibold text-slate-200">アカウントの雰囲気</p>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-400">テーマ一言</span>
+            <input
+              value={settings.accountTheme}
               onChange={(e) =>
-                setStyle(e.target.value === "thread_hint" ? "thread_hint" : "short")
+                setSettings((s) => ({ ...s, accountTheme: e.target.value }))
               }
-              className="rounded-lg border border-slate-800 bg-slate-950 px-2 py-2 text-xs text-slate-100 outline-none"
-            >
-              <option value="short">短文（朝の1ポスト向け）</option>
-              <option value="thread_hint">スレ用・少し長めの素</option>
-            </select>
+              className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 text-base text-slate-100 outline-none focus:border-emerald-500/50"
+            />
           </label>
-          <button
-            type="button"
-            onClick={generateDraft}
-            disabled={!selected || loading}
-            className="rounded-lg border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm font-medium text-slate-100 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {loading ? "生成中…" : "文案を生成"}
-          </button>
-          {source !== "idle" ? (
-            <span className="text-[11px] text-slate-500">
-              モード: {source === "openai" ? "OpenAI" : "テンプレ（APIキーなし）"}
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-400">
+              開示（文末に入ります）
             </span>
-          ) : null}
+            <textarea
+              value={settings.disclosure}
+              onChange={(e) =>
+                setSettings((s) => ({ ...s, disclosure: e.target.value }))
+              }
+              rows={3}
+              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-base text-slate-100 outline-none focus:border-emerald-500/50"
+            />
+          </label>
+          <p className="text-xs leading-relaxed text-slate-500">
+            表現はご自身の責任で調整してください。迷ったらアソシエイトの運用ガイドを確認してください。
+          </p>
         </div>
+      ) : null}
 
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          rows={12}
-          placeholder={selected ? "「文案を生成」を押してください" : "ライブラリで商品を選んでください"}
-          className="mt-3 w-full resize-y rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 font-mono text-xs leading-relaxed text-slate-100 outline-none focus:border-emerald-500/40"
-        />
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+      {/* 固定フッター：スマホでコピーが常に近い */}
+      {tab === "compose" && draft.trim().length > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md lg:hidden">
           <button
             type="button"
             onClick={copyDraft}
             disabled={!draft.trim()}
-            className="rounded-lg bg-emerald-500/90 px-4 py-2.5 text-sm font-medium text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex w-full min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-emerald-500/90 text-sm font-bold text-slate-950 hover:bg-emerald-400 disabled:opacity-40"
           >
-            コピー
+            <Copy className="h-4 w-4" aria-hidden />
+            {copyState === "ok" ? "コピーした！Xに貼ってね" : "コピーしてXに貼る"}
           </button>
-          {copyState === "ok" ? (
-            <span className="text-xs text-emerald-300">コピーしました</span>
-          ) : null}
           {copyState === "err" ? (
-            <span className="text-xs text-rose-300">コピーできませんでした（手動選択でコピーしてください）</span>
+            <p className="mt-2 text-center text-xs text-rose-300">
+              長押しでコピーできない場合は、上の文案を選択してコピーしてください。
+            </p>
           ) : null}
         </div>
-      </section>
+      ) : null}
+
+      {/* PCではコピーを通常配置にも出す */}
+      {tab === "compose" && draft.trim().length > 0 ? (
+        <div className="mt-4 hidden lg:block">
+          <button
+            type="button"
+            onClick={copyDraft}
+            className="flex w-full max-w-sm min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-emerald-500/90 text-sm font-bold text-slate-950 hover:bg-emerald-400"
+          >
+            <Copy className="h-4 w-4" aria-hidden />
+            {copyState === "ok" ? "コピー済み" : "コピーしてXに貼る"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

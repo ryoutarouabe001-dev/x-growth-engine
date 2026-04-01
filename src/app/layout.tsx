@@ -2,6 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { MobileTopNav } from "@/components/MobileTopNav";
+import { NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -9,20 +11,13 @@ export const metadata: Metadata = {
   description: "X専用の半自動運用ダッシュボード",
 };
 
-const navItems = [
-  { href: "/", label: "ダッシュボード" },
-  { href: "/affiliate", label: "Amazonアフィ" },
-  { href: "/scheduler", label: "投稿スケジュール" },
-  { href: "/inbox", label: "リプ / メンション" },
-  { href: "/analytics", label: "分析" },
-];
-
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja">
       <body className="min-h-full bg-slate-950 text-slate-50 antialiased">
-        <div className="flex min-h-screen">
-          <aside className="flex w-64 flex-col border-r border-slate-800 bg-slate-950/90">
+        <MobileTopNav />
+        <div className="flex min-h-[calc(100vh-1px)]">
+          <aside className="hidden w-60 flex-col border-r border-slate-800 bg-slate-950/90 xl:flex xl:w-64">
             <div className="border-b border-slate-800 px-5 py-4">
               <div className="text-xs uppercase tracking-[0.25em] text-slate-500">
                 X Growth
@@ -33,7 +28,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </p>
             </div>
             <nav className="mt-4 flex-1 space-y-1 px-3">
-              {navItems.map((item) => (
+              {NAV_ITEMS.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -59,23 +54,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </aside>
 
           <main className="min-w-0 flex-1 bg-slate-950">
-            <header className="flex items-center justify-between border-b border-slate-800 px-6 py-3">
-              <div>
-                <div className="text-xs uppercase tracking-[0.25em] text-slate-500">
-                  X Operations
-                </div>
-                <p className="text-sm text-slate-300">
-                  伸びる型の投稿と返信に集中できるUI（APIは後から接続）
-                </p>
+            <header className="hidden border-b border-slate-800 px-6 py-3 lg:block">
+              <div className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                X Operations
               </div>
-              <div className="hidden items-center gap-3 text-xs text-slate-400 sm:flex">
-                <span>本番: Vercel</span>
-                <span className="rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-300">
-                  Next.js App Router
-                </span>
-              </div>
+              <p className="text-sm text-slate-300">
+                スマホは上の丸ボタンで移動。Amazonアフィは「Amazon」タブ。
+              </p>
             </header>
-            <div className="px-6 py-6">{children}</div>
+            <div className="px-4 py-4 pb-28 lg:px-6 lg:py-6 lg:pb-6">{children}</div>
           </main>
         </div>
       </body>
