@@ -1,5 +1,13 @@
 import type { ReactNode } from "react";
-import { Bookmark, MessageCircle, TrendingUp, Users } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowRight,
+  Bookmark,
+  MessageCircle,
+  ShoppingBag,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 
 const mockStats = {
   impressionsToday: 12840,
@@ -49,7 +57,65 @@ const mockTopTweets = [
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
+      <section className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-950/80 p-4 ring-1 ring-slate-800/80 sm:p-5">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-emerald-500/90">
+          今日の15分
+        </p>
+        <h1 className="mt-1 text-lg font-bold text-white sm:text-xl">
+          まずはここから（スマホOK）
+        </h1>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <Link
+            href="/affiliate"
+            className="group flex min-h-[72px] items-center justify-between gap-3 rounded-xl bg-emerald-500/15 px-4 py-3 ring-1 ring-emerald-500/40 transition-colors hover:bg-emerald-500/20"
+          >
+            <span className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-200">
+                <ShoppingBag className="h-5 w-5" aria-hidden />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold text-emerald-50">
+                  Amazonアフィ
+                </span>
+                <span className="block text-xs text-emerald-200/70">
+                  URL → 文案 → コピー
+                </span>
+              </span>
+            </span>
+            <ArrowRight
+              className="h-5 w-5 shrink-0 text-emerald-300/80 transition-transform group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </Link>
+          <Link
+            href="/scheduler"
+            className="group flex min-h-[72px] items-center justify-between gap-3 rounded-xl bg-slate-900/60 px-4 py-3 ring-1 ring-slate-800 transition-colors hover:bg-slate-800/80"
+          >
+            <span className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-slate-300">
+                <Bookmark className="h-5 w-5" aria-hidden />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold text-slate-100">
+                  予定・スケジュール
+                </span>
+                <span className="block text-xs text-slate-500">
+                  投稿リズムのメモ（拡張予定）
+                </span>
+              </span>
+            </span>
+            <ArrowRight
+              className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </Link>
+        </div>
+        <p className="mt-3 text-xs leading-relaxed text-slate-500">
+          iPhoneなら Safariの「ホーム画面に追加」でアプリっぽく開けます。Amazonタブの「設定」からデータのバックアップもできます。
+        </p>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           icon={<TrendingUp className="h-4 w-4 text-emerald-400" aria-hidden />}

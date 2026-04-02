@@ -3,14 +3,16 @@
 import {
   Check,
   Copy,
+  Download,
   HelpCircle,
   PackagePlus,
   Settings2,
   Sparkles,
   Trash2,
+  Upload,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AffiliateSettings, AmazonProduct } from "@/types/affiliate";
 import { cn } from "@/lib/utils";
 
@@ -120,6 +122,8 @@ export default function AmazonAffiliatePage() {
   const [copyState, setCopyState] = useState<"idle" | "ok" | "err">("idle");
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupMessage, setLookupMessage] = useState<string | null>(null);
+  const backupInputRef = useRef<HTMLInputElement>(null);
+  const [backupNotice, setBackupNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -234,6 +238,71 @@ export default function AmazonAffiliatePage() {
       setLookupLoading(false);
     }
   }, [affiliateUrl, settings.accountTheme]);
+
+  const exportBackup = useCallback(() => {
+    const payload = {
+      version: 1 as const,
+      exportedAt: new Date().toISOString(),
+      products,
+      settings,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `xge-amazon-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setBackupNotice("ダウンロードを開始しました");
+    window.setTimeout(() => setBackupNotice(null), 2500);
+  }, [products, settings]);
+
+  const importBackup = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(String(reader.result)) as {
+          version?: number;
+          products?: AmazonProduct[];
+          settings?: Partial<AffiliateSettings>;
+        };
+        if (
+          data.version !== 1 ||
+          !Array.isArray(data.products) ||
+          !data.settings ||
+          typeof data.settings !== "object"
+        ) {
+          window.alert("ファイルの形式が違います（xge-amazon-backup を選んでください）");
+          return;
+        }
+        if (
+          !window.confirm(
+            "この端末に保存されている商品・設定を、ファイルの内容で上書きします。よいですか？",
+          )
+        ) {
+          return;
+        }
+        setProducts(data.products);
+        setSettings({
+          accountTheme:
+            String(data.settings.accountTheme ?? "").trim() ||
+            defaultSettings.accountTheme,
+          disclosure:
+            String(data.settings.disclosure ?? "").trim() ||
+            defaultSettings.disclosure,
+        });
+        setSelectedId(null);
+        setDraft("");
+        setBackupNotice("読み込みが完了しました。「作る」タブで確認してください");
+        window.setTimeout(() => setBackupNotice(null), 4000);
+      } catch {
+        window.alert("読み込みに失敗しました");
+      }
+    };
+    reader.readAsText(file, "utf-8");
+  }, []);
 
   const copyDraft = useCallback(async () => {
     if (!draft.trim()) return;
@@ -607,6 +676,45 @@ export default function AmazonAffiliatePage() {
           <p className="text-xs leading-relaxed text-slate-500">
             表現はご自身の責任で調整してください。迷ったらアソシエイトの運用ガイドを確認してください。
           </p>
+
+          <div className="border-t border-slate-800 pt-4">
+            <p className="text-sm font-semibold text-slate-200">データのバックアップ</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              商品リストはこの端末のブラウザにだけ保存されます。機種変更前にエクスポートしてください。
+            </p>
+            {backupNotice ? (
+              <p className="mt-3 text-xs font-medium text-emerald-300">{backupNotice}</p>
+            ) : null}
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={exportBackup}
+                className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-4 text-sm font-semibold text-slate-100 hover:bg-slate-900"
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                ファイルに保存
+              </button>
+              <button
+                type="button"
+                onClick={() => backupInputRef.current?.click()}
+                className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-4 text-sm font-semibold text-slate-100 hover:bg-slate-900"
+              >
+                <Upload className="h-4 w-4" aria-hidden />
+                ファイルから読み込み
+              </button>
+              <input
+                ref={backupInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) importBackup(f);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          </div>
         </div>
       ) : null}
 
