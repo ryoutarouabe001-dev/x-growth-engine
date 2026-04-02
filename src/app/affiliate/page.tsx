@@ -118,6 +118,8 @@ export default function AmazonAffiliatePage() {
   const [source, setSource] = useState<"idle" | "openai" | "template">("idle");
   const [loading, setLoading] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "ok" | "err">("idle");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupMessage, setLookupMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -189,6 +191,49 @@ export default function AmazonAffiliatePage() {
       setLoading(false);
     }
   }, [selected, settings, style]);
+
+  const lookupFromUrl = useCallback(async () => {
+    const u = affiliateUrl.trim();
+    if (!u) {
+      setLookupMessage("先にアフィURLを入力してください");
+      return;
+    }
+    setLookupLoading(true);
+    setLookupMessage(null);
+    try {
+      const res = await fetch("/api/affiliate/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: u,
+          accountTheme: settings.accountTheme,
+        }),
+      });
+      const data = (await res.json()) as {
+        title?: string;
+        memo?: string;
+        tags?: string;
+        aiUsed?: boolean;
+        error?: string;
+      };
+      if (!res.ok) {
+        setLookupMessage(data.error || "取得に失敗しました");
+        return;
+      }
+      if (data.title) setTitle(data.title);
+      if (typeof data.memo === "string") setMemo(data.memo);
+      if (typeof data.tags === "string") setTags(data.tags);
+      setLookupMessage(
+        data.aiUsed
+          ? "商品名＋メモ／タグを自動入力しました（内容は必ず確認）"
+          : "商品名を自動入力しました。メモ／タグはOPENAIキーがあると提案されます",
+      );
+    } catch {
+      setLookupMessage("通信に失敗しました");
+    } finally {
+      setLookupLoading(false);
+    }
+  }, [affiliateUrl, settings.accountTheme]);
 
   const copyDraft = useCallback(async () => {
     if (!draft.trim()) return;
@@ -437,8 +482,9 @@ export default function AmazonAffiliatePage() {
               ヒント（長押しコピー・APIキー）
             </summary>
             <p className="mt-2 leading-relaxed">
-              Vercelに環境変数 <code className="text-slate-400">OPENAI_API_KEY</code>{" "}
-              を入れると、文案がAI版になります。Amazonのリンクは必ず正規のものを貼ってください。
+              <code className="text-slate-400">OPENAI_API_KEY</code> があると、文案生成に加えて
+              「登録」タブの<strong className="font-medium text-slate-300">メモ／タグ提案</strong>も使えます。
+              アフィURLからの自動取得はAmazon側の都合で失敗することがあります。
             </p>
           </details>
         </div>
@@ -446,26 +492,55 @@ export default function AmazonAffiliatePage() {
 
       {tab === "add" ? (
         <div className="space-y-4 rounded-2xl bg-slate-900/40 p-4 ring-1 ring-slate-800">
-          <p className="text-sm font-semibold text-slate-200">必須は2つだけ</p>
+          <p className="text-sm font-semibold text-slate-200">
+            まずはアフィURL → 自動で商品名（＋AIならメモ・タグ）
+          </p>
+          <p className="text-xs leading-relaxed text-slate-500">
+            Amazonのサーバー側制限で取れない場合があります。そのときは商品名だけ手入力してください。
+          </p>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-400">
+              アフィURL（必須・amzn.to など）
+            </span>
+            <input
+              value={affiliateUrl}
+              onChange={(e) => {
+                setAffiliateUrl(e.target.value);
+                setLookupMessage(null);
+              }}
+              placeholder="https://amzn.to/xxxx"
+              inputMode="url"
+              autoComplete="off"
+              className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 text-base text-slate-100 outline-none focus:border-emerald-500/50"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={lookupFromUrl}
+            disabled={!affiliateUrl.trim() || lookupLoading}
+            className="flex w-full min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-950 text-sm font-semibold text-slate-100 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
+            {lookupLoading ? "取得中…" : "URLから商品名を自動入力"}
+          </button>
+          {lookupMessage ? (
+            <p
+              className={cn(
+                "text-xs leading-relaxed",
+                lookupMessage.includes("失敗") || lookupMessage.includes("できません")
+                  ? "text-amber-200"
+                  : "text-emerald-200/90",
+              )}
+            >
+              {lookupMessage}
+            </p>
+          ) : null}
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-slate-400">商品名</span>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="例：Anker モバイルバッテリー"
-              className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 text-base text-slate-100 outline-none focus:border-emerald-500/50"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-slate-400">
-              アフィURL（amzn.to など）
-            </span>
-            <input
-              value={affiliateUrl}
-              onChange={(e) => setAffiliateUrl(e.target.value)}
-              placeholder="https://amzn.to/xxxx"
-              inputMode="url"
-              autoComplete="off"
+              placeholder="自動入力 or 手入力"
               className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 text-base text-slate-100 outline-none focus:border-emerald-500/50"
             />
           </label>
